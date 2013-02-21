@@ -8,6 +8,7 @@ class PostRevisor
     @user, @new_raw, @opts = user, new_raw, opts
     return false if not should_revise?
     revise_post
+    update_category_description
     post_process_post
     true
   end
@@ -74,6 +75,22 @@ class PostRevisor
     end
 
     @post.save
+  end
+
+  def update_category_description
+    # If we're revising the first post, we might have to update the category description
+    return unless @post.post_number == 1
+
+    # Is there a category with our topic id?
+    category = Category.where(topic_id: @post.topic_id).first
+    return unless category.present?
+
+    # If found, update its description
+    body = @post.cooked
+    matches = body.scan(/\<p\>(.*)\<\/p\>/)
+    if matches and matches[0] and matches[0][0]      
+      category.update_column(:description, matches[0][0])
+    end
   end
 
   def post_process_post

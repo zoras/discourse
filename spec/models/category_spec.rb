@@ -83,6 +83,10 @@ describe Category do
       @category.slug.should == 'amazing-category'
     end
 
+    it 'has a default description' do
+      @category.description.should be_blank
+    end
+
     it 'has one topic' do
       Topic.where(category_id: @category).count.should == 1
     end
@@ -107,12 +111,48 @@ describe Category do
       @topic.posts.count.should == 1
     end
 
-    it 'should have an excerpt' do
-      @category.excerpt.should be_present
-    end
-
     it 'should have a topic url' do
       @category.topic_url.should be_present
+    end
+
+    describe "change description" do
+
+      let(:op) { @topic.posts.first }
+      let(:new_description) { "this is my new description." }
+
+      describe "one paragraph description" do
+        before do
+          op.revise(@topic.user, new_description)
+          @category.reload
+        end
+
+        it "updates the category description" do
+          @category.description.should == new_description
+        end
+      end
+
+      describe "multiple paragraph description" do
+          before do
+          op.revise(@topic.user, "#{new_description}\n\nOther content goes here.")
+          @category.reload
+        end
+
+        it "updates the category description" do
+          @category.description.should == new_description
+        end
+      end
+
+      describe 'when updating back to the original paragraph' do
+        before do
+          op.revise(@topic.user, Category.post_template)
+          @category.reload
+        end
+
+        it "puts the description back to nothing" do
+          @category.description.should be_blank
+        end
+      end
+
     end
 
     describe "trying to change the category topic's category" do
