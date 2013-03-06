@@ -65,7 +65,7 @@ class TopicQuery
   # The popular view of topics
   def list_popular
     return_list(unordered: true) do |list|
-      list.order('CASE WHEN topics.category_id IS NULL and topics.pinned THEN 0 ELSE 1 END, topics.bumped_at DESC')
+      list.order('CASE WHEN topics.category_id IS NULL and (topics.pinned_at IS NOT NULL) THEN 0 ELSE 1 END, topics.bumped_at DESC')
     end
   end
 
@@ -99,11 +99,11 @@ class TopicQuery
   end
 
   def list_uncategorized
-    return_list {|l| l.where(category_id: nil).order('topics.pinned desc')}
+    return_list {|l| l.where(category_id: nil).order('topics.pinned_at desc')}
   end
 
   def list_category(category)
-    return_list {|l| l.where(category_id: category.id).order('topics.pinned desc')}
+    return_list {|l| l.where(category_id: category.id).order('topics.pinned_at desc')}
   end
 
   def unread_count
@@ -148,13 +148,13 @@ class TopicQuery
         .joins("LEFT OUTER JOIN topic_users AS tu ON (topics.id = tu.topic_id AND tu.user_id = #{@user_id})")
         .where("topics.created_at >= :created_at", created_at: @user.treat_as_new_topic_start_date)
         .where("tu.last_read_post_number IS NULL")
-        .where("COALESCE(tu.notification_level, :tracking) >= :tracking", tracking: TopicUser::NotificationLevel::TRACKING)
+        .where("COALESCE(tu.notification_level, :tracking) >= :tracking", tracking: TopicUser.notification_levels[:tracking])
     end
 
     def unread_results(list_opts={})
       default_list(list_opts)
         .joins("INNER JOIN topic_users AS tu ON (topics.id = tu.topic_id AND tu.user_id = #{@user_id} AND tu.last_read_post_number < topics.highest_post_number)")
-        .where("COALESCE(tu.notification_level, :regular) >= :tracking", regular: TopicUser::NotificationLevel::REGULAR, tracking: TopicUser::NotificationLevel::TRACKING)
+        .where("COALESCE(tu.notification_level, :regular) >= :tracking", regular: TopicUser.notification_levels[:regular], tracking: TopicUser.notification_levels[:tracking])
     end
 
     def random_suggested_results_for(topic, count, exclude_topic_ids)
